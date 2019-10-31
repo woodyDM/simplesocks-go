@@ -6,14 +6,12 @@ type encrypter interface {
 	dec(data []byte) []byte
 }
 
-type encrypterFactory interface {
-
+type encFactory interface {
 	iv() []byte
 
 	ivLen() int
 
-	newInstance() encrypter
-
+	newEncrypter() encrypter
 }
 
 type caesarFactory struct {
@@ -28,8 +26,8 @@ func (c caesarFactory) ivLen() int {
 	panic("implement me")
 }
 
-func (c caesarFactory) newInstance() encrypter {
-	return &caesarEncrypter{offset:c.offset}
+func (c caesarFactory) newEncrypter() encrypter {
+	return &caesarEncrypter{offset: c.offset}
 }
 
 type caesarEncrypter struct {
@@ -37,19 +35,19 @@ type caesarEncrypter struct {
 }
 
 func (c *caesarEncrypter) enc(raw []byte) []byte {
-	return c.doLoop(raw, func(r []byte, pos int) {
+	return c.doLoop(len(raw), func(r []byte, pos int) {
 		r[pos] = raw[pos] + c.offset
 	})
 }
 
 func (c *caesarEncrypter) dec(data []byte) []byte {
-	return c.doLoop(data, func(r []byte, pos int) {
+	return c.doLoop(len(data), func(r []byte, pos int) {
 		r[pos] = data[pos] - c.offset
 	})
 }
 
-func (c *caesarEncrypter) doLoop(data []byte, consumer func(r []byte, pos int)) []byte {
-	l := len(data)
+func (c *caesarEncrypter) doLoop(l int, consumer func(r []byte, pos int)) []byte {
+
 	result := make([]byte, l)
 	for i := 0; i < l; i++ {
 		consumer(result, i)

@@ -11,7 +11,7 @@ const (
 	LenHeader      = 4
 	LenVersion     = 1
 	LenHeaderTotal = LenHeader + LenVersion
-	LenType =1
+	LenType        = 1
 )
 
 type buffer struct {
@@ -28,7 +28,7 @@ func readWithRemainingBuffer(data []byte, b *buffer) []*buffer {
 	}
 	var result []*buffer
 	var leftData = data
-	for ; len(leftData) > 0; {
+	for len(leftData) > 0 {
 		if b.isNew() {
 			checkProtocolVersion(leftData[0])
 			b.readHeader = true
@@ -40,13 +40,13 @@ func readWithRemainingBuffer(data []byte, b *buffer) []*buffer {
 				leftData = left
 				if ok {
 					b.readBody = true
-					b.body = NewLenHolder(b.header.parseLength() - LenHeaderTotal)
+					b.body = NewLenHolder(b.header.parseLength0() - LenHeaderTotal)
 				}
 			} else {
 				ok, left := b.body.read(leftData)
 				leftData = left
 				if ok {
-					if !b.full(){
+					if !b.full() {
 						panic(errors.New("Should be full when reach here "))
 					}
 					result = append(result, b)
@@ -55,7 +55,7 @@ func readWithRemainingBuffer(data []byte, b *buffer) []*buffer {
 			}
 		}
 	}
-	if !b.isNew(){
+	if !b.isNew() {
 		result = append(result, b)
 	}
 	return result
@@ -74,7 +74,7 @@ type lenHolder struct {
 	ok          bool
 }
 
-func (buf *buffer) isNew() bool{
+func (buf *buffer) isNew() bool {
 	return !buf.readHeader
 }
 

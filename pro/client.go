@@ -64,10 +64,6 @@ func (p *Client) Start() {
 				p.onError(p.cn, err)
 				break
 			} else {
-				if n <= 0 {
-					//TODO remove
-					panic(errors.New("?? n <=0 ??? %d, %v "))
-				}
 				p.onRead(n, data[0:n])
 			}
 		}

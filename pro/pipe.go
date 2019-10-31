@@ -2,15 +2,14 @@ package pro
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net"
+	"time"
 )
 
 type Pipeline struct {
 	s *SClient
 	c *Client
-	factory encrypterFactory
 }
 
 func NewPipeline(cn net.Conn) *Pipeline {
@@ -35,11 +34,11 @@ func (p *Pipeline) Start() {
 }
 
 func onReadError(p *Pipeline, err error) {
-	p.close("Pipe read error",err)
+	p.close("Pipe read error", err)
 }
 
 func (p *Pipeline) close(msg string, err error) {
-	log.Printf("%sr: %v", msg, err)
+	log.Printf("%s : %v", msg, err)
 	if p.s != nil {
 		p.s.close()
 	}
@@ -49,8 +48,7 @@ func (p *Pipeline) close(msg string, err error) {
 }
 
 func onReadBuffer(p *Pipeline, buf *buffer) {
-	fmt.Println(buf)
-	c, err := parseCommand(buf)
+	c, err := parseCommand(buf, p.s.encFactory)
 	if err != nil {
 		p.close("ParseCommand ", err)
 	}
@@ -58,29 +56,52 @@ func onReadBuffer(p *Pipeline, buf *buffer) {
 	case *cmdConnect:
 		p.connectToTarget(cmd)
 	case *cmdProxy:
-		fmt.Println(cmd)
-
-
+		p.sendClientDataToProxyTargetAndResponse(cmd)
 	default:
 		panic(errors.New("Unreachable. "))
+	}
+}
+
+func (p *Pipeline) sendClientDataToProxyTargetAndResponse(cmd *cmdProxy) {
+	_, err := p.c.cn.Write(cmd.data)
+	if err != nil {
+		p.close("send to proxy client err. ", err)
+	} else {
+		resp := newProxyCmdResp(true, cmd.id)
+		p.s.sendToClient(resp)
 	}
 }
 
 func (p *Pipeline) connectToTarget(cmd *cmdConnect) {
 	proxyClient, e := newProxyClient(cmd)
 	if e != nil {
-		p.close("Error when connect to target. ",e)
-	}else{
+		p.close("Error when connect to target server .", e)
+	} else {
 		p.configProxyClient(proxyClient)
 		//TODO validate
-		resp := newCmdConnectResp(true, cmd)
+
+		resp := newCmdConnectResp(true, cmd.enctype)
+		p.createEncFactory(resp)
 		p.c.Start()
 		p.s.sendToClient(resp)
-
 	}
 
 }
 
-func (p *Pipeline) configProxyClient(c *Client)  {
+func (p *Pipeline) createEncFactory(cmd *cmdConnectResp) {
+	//TODO add aes encFactory
+	p.s.encFactory = caesarFactory{offset: cmd.iv[0]}
+
+}
+
+func (p *Pipeline) configProxyClient(c *Client) {
 	p.c = c
+	c.onError = func(cn net.Conn, err error) {
+		p.close("Error in proxy client.", err)
+	}
+	p.c.onRead = func(l int, data []byte) {
+		id := time.Now().Format("20060102150405")
+		resp := newServerProxyData(id, data, p.s.encFactory)
+		p.s.sendToClient(resp)
+	}
 }
