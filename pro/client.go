@@ -2,7 +2,7 @@ package pro
 
 import (
 	"errors"
-	"fmt"
+	"log"
 	"net"
 )
 
@@ -63,7 +63,7 @@ func (p *Client) Start() {
 	p.assertRunning()
 	go func() {
 		if p.target != nil {
-			fmt.Printf("[Gorounite]              ===> Create for [%s:%d]\n", p.target.requestHost, p.target.requestPort)
+			log.Printf("[Goroutine]===> Create for [%s:%d]\n", p.target.requestHost, p.target.requestPort)
 		}
 		for p.running {
 			data := make([]byte, 4096)
@@ -80,7 +80,7 @@ func (p *Client) Start() {
 			}
 		}
 		if p.target != nil {
-			fmt.Printf("[Gorounite]                               <=== Over [%s:%d]\n", p.target.requestHost, p.target.requestPort)
+			log.Printf("[Goroutine]           <=== Close [%s:%d]\n", p.target.requestHost, p.target.requestPort)
 		}
 	}()
 }

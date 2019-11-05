@@ -229,7 +229,6 @@ func parseConnectCmd(data []byte) (command, error) {
 		offset:      offset,
 		requestHost: host,
 	}
-	//fmt.Printf("CN: %s:%d\n",result.requestHost, result.requestPort)
 	return result, nil
 }
 
@@ -238,7 +237,6 @@ func parseProxyCmd(data []byte, factory encFactory) (*cmdProxy, error) {
 	id := string(data[1 : l+1])
 	enc := data[l+1:]
 	dec := factory.newEncrypter().dec(enc)
-	//fmt.Printf("Receive %s with length %d\n",id, len(dec))
 	return &cmdProxy{
 		idLength: l,
 		id:       id,

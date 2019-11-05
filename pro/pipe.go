@@ -2,8 +2,6 @@ package pro
 
 import (
 	"errors"
-	"fmt"
-	"log"
 	"net"
 	"time"
 )
@@ -39,7 +37,7 @@ func onReadError(p *Pipeline, err error) {
 }
 
 func (p *Pipeline) close(msg string, err error) {
-	log.Printf("%s : %v", msg, err)
+	//log.Printf("%s : %v", msg, err)
 	if p.s != nil {
 		p.s.close()
 	}
@@ -84,9 +82,7 @@ func (p *Pipeline) connectToTarget(cmd *cmdConnect) {
 		resp := newCmdConnectResp(true, cmd.enctype)
 		p.createEncFactory(resp)
 		p.c.Start()
-
 		p.s.sendToClient(resp)
-		fmt.Printf("ready to receive proxy data for %s:%d\n", cmd.requestHost, cmd.requestPort)
 	}
 
 }

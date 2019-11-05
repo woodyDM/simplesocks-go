@@ -30,14 +30,11 @@ func readWithRemainingBuffer(data []byte, b *buffer) []*buffer {
 	var leftData = data
 
 	for len(leftData) > 0 {
-
 		if b.isNew() {
 			checkProtocolVersion(leftData[0])
 			b.readHeader = true
 			b.header = NewLenHolder(LenHeader)
-
-			fmt.Printf("Create header LenHolder\n")
-			leftData = data[1:]
+			leftData = leftData[1:]
 		} else {
 			if !b.readBody {
 				ok, left := b.header.read(leftData)
@@ -45,7 +42,6 @@ func readWithRemainingBuffer(data []byte, b *buffer) []*buffer {
 				if ok {
 					b.readBody = true
 					b.body = NewLenHolder(b.header.parseLength0() - LenHeaderTotal)
-					fmt.Printf("Create body LenHolder%d\n", b.body.totalLength)
 				}
 			} else {
 				ok, left := b.body.read(leftData)
@@ -59,7 +55,6 @@ func readWithRemainingBuffer(data []byte, b *buffer) []*buffer {
 				}
 			}
 		}
-		fmt.Printf("New loop lenght is %d\n", len(leftData))
 	}
 	if !b.isNew() {
 		result = append(result, b)
@@ -117,9 +112,7 @@ func (h *lenHolder) read(data []byte) (bool, []byte) {
 	h.pos += readLen
 	if canRead >= shouldRead {
 		h.ok = true
-		resultSlice := data[readLen:]
-		fmt.Printf("Returned result len %d\n", len(resultSlice))
-		return true, resultSlice
+		return true, data[readLen:]
 	} else {
 		return false, nil
 	}
