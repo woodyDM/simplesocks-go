@@ -2,12 +2,14 @@ package pro
 
 import (
 	"errors"
+	"fmt"
 	"net"
 )
 
 type Client struct {
 	target  *cmdConnect
 	cn      net.Conn
+	running bool
 	onError func(cn net.Conn, err error)
 	onRead  func(l int, data []byte)
 }
@@ -17,7 +19,8 @@ used in SClient
 */
 func NewClient(cn net.Conn) *Client {
 	p := &Client{
-		cn: cn,
+		cn:      cn,
+		running: true,
 	}
 	return p
 }
@@ -33,12 +36,14 @@ func newProxyClient(target *cmdConnect) (*Client, error) {
 	if err != nil {
 		return nil, err
 	} else {
+		p.running = true
 		return p, nil
 	}
 }
 
 func (p *Client) close() {
 	if p.cn != nil {
+		p.running = false
 		p.cn.Close()
 	}
 }
@@ -57,15 +62,25 @@ func (p *Client) tryConnect() error {
 func (p *Client) Start() {
 	p.assertRunning()
 	go func() {
-		for {
+		if p.target != nil {
+			fmt.Printf("[Gorounite]              ===> Create for [%s:%d]\n", p.target.requestHost, p.target.requestPort)
+		}
+		for p.running {
 			data := make([]byte, 4096)
 			n, err := p.cn.Read(data)
 			if err != nil {
+				p.running = false
 				p.onError(p.cn, err)
 				break
 			} else {
+				if n == 0 {
+					panic(errors.New("The read bytes length should >0 "))
+				}
 				p.onRead(n, data[0:n])
 			}
+		}
+		if p.target != nil {
+			fmt.Printf("[Gorounite]                               <=== Over [%s:%d]\n", p.target.requestHost, p.target.requestPort)
 		}
 	}()
 }

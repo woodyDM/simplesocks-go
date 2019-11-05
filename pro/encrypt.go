@@ -19,11 +19,11 @@ type caesarFactory struct {
 }
 
 func (c caesarFactory) iv() []byte {
-	panic("implement me")
+	return []byte{100}
 }
 
 func (c caesarFactory) ivLen() int {
-	panic("implement me")
+	return 1
 }
 
 func (c caesarFactory) newEncrypter() encrypter {

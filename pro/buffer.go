@@ -28,11 +28,15 @@ func readWithRemainingBuffer(data []byte, b *buffer) []*buffer {
 	}
 	var result []*buffer
 	var leftData = data
+
 	for len(leftData) > 0 {
+
 		if b.isNew() {
 			checkProtocolVersion(leftData[0])
 			b.readHeader = true
 			b.header = NewLenHolder(LenHeader)
+
+			fmt.Printf("Create header LenHolder\n")
 			leftData = data[1:]
 		} else {
 			if !b.readBody {
@@ -41,6 +45,7 @@ func readWithRemainingBuffer(data []byte, b *buffer) []*buffer {
 				if ok {
 					b.readBody = true
 					b.body = NewLenHolder(b.header.parseLength0() - LenHeaderTotal)
+					fmt.Printf("Create body LenHolder%d\n", b.body.totalLength)
 				}
 			} else {
 				ok, left := b.body.read(leftData)
@@ -54,6 +59,7 @@ func readWithRemainingBuffer(data []byte, b *buffer) []*buffer {
 				}
 			}
 		}
+		fmt.Printf("New loop lenght is %d\n", len(leftData))
 	}
 	if !b.isNew() {
 		result = append(result, b)
@@ -101,6 +107,9 @@ func (h *lenHolder) read(data []byte) (bool, []byte) {
 	canRead := len(data)
 	shouldRead := h.totalLength - h.pos
 	readLen := min(canRead, shouldRead)
+	if readLen == 0 {
+		panic("Zero read length.")
+	}
 	//TODO change to use Copy
 	for i := 0; i < readLen; i++ {
 		h.content[h.pos+i] = data[i]
@@ -108,7 +117,9 @@ func (h *lenHolder) read(data []byte) (bool, []byte) {
 	h.pos += readLen
 	if canRead >= shouldRead {
 		h.ok = true
-		return true, data[readLen:]
+		resultSlice := data[readLen:]
+		fmt.Printf("Returned result len %d\n", len(resultSlice))
+		return true, resultSlice
 	} else {
 		return false, nil
 	}

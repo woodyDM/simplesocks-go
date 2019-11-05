@@ -2,6 +2,7 @@ package pro
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"time"
@@ -83,7 +84,9 @@ func (p *Pipeline) connectToTarget(cmd *cmdConnect) {
 		resp := newCmdConnectResp(true, cmd.enctype)
 		p.createEncFactory(resp)
 		p.c.Start()
+
 		p.s.sendToClient(resp)
+		fmt.Printf("ready to receive proxy data for %s:%d\n", cmd.requestHost, cmd.requestPort)
 	}
 
 }
@@ -100,7 +103,7 @@ func (p *Pipeline) configProxyClient(c *Client) {
 		p.close("Error in proxy client.", err)
 	}
 	p.c.onRead = func(l int, data []byte) {
-		id := time.Now().Format("20060102150405")
+		id := time.Now().Format("20060102150405001")
 		resp := newServerProxyData(id, data, p.s.encFactory)
 		p.s.sendToClient(resp)
 	}

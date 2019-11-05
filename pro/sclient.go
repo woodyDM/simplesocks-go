@@ -28,6 +28,7 @@ func (s *SClient) sendToClient(cmd serverCommand) {
 		_, err := s.cn.Write(b)
 		if err != nil {
 			s.onError(s.cn, err)
+			break
 		}
 	}
 }
@@ -36,7 +37,9 @@ func onRead(s *SClient, l int, data []byte) {
 	buffers := readWithRemainingBuffer(data, s.buf)
 	for _, buf := range buffers {
 		if buf.full() {
+			fmt.Printf("Now read buffer %d", buf.body.totalLength)
 			s.onReadBuff(buf)
+			s.buf = nil
 		} else {
 			//only last of buffers may be not full buffer, hold the data when next package of bytes come.
 			fmt.Println("Trigger buffer left to next read. ")
