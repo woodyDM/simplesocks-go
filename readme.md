@@ -1,10 +1,11 @@
 ## About   
-This project is a demo project when I studying the golang.   
+This project is a demo project (SimpleSocks server) when I studying Golang.    
 It is still under construction.  
 
 ## Progress
 
 + [ ] Data encryption   (AES)
-+ [x] Simple website is ok 
++ [x] Data encryption   (Caesar)
++ [x] SimpleSocks server-side protocol    
 + [ ] Code refactor  
-+ [ ] Config files
++ [x] Configuration from file (json)

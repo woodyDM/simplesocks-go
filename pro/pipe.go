@@ -2,6 +2,9 @@ package pro
 
 import (
 	"errors"
+	"fmt"
+	"log"
+	"math/rand"
 	"net"
 	"time"
 )
@@ -53,7 +56,7 @@ func onReadBuffer(p *Pipeline, buf *buffer) {
 	}
 	switch cmd := c.(type) {
 	case *cmdConnect:
-		p.connectToTarget(cmd)
+		p.connectToTargetIfAuthOk(cmd)
 	case *cmdProxy:
 		p.sendClientDataToProxyTargetAndResponse(cmd)
 	default:
@@ -71,20 +74,34 @@ func (p *Pipeline) sendClientDataToProxyTargetAndResponse(cmd *cmdProxy) {
 	}
 }
 
-func (p *Pipeline) connectToTarget(cmd *cmdConnect) {
+func (p *Pipeline) connectToTargetIfAuthOk(cmd *cmdConnect) {
+	if cmd.auth == Config.Auth {
+		p.tryConnectingTarget(cmd)
+	} else {
+		p.sendFailResponse(cmd)
+	}
+
+}
+
+func (p *Pipeline) sendFailResponse(cmd *cmdConnect) {
+	resp := newCmdConnectResp(false, cmd.enctype)
+	p.s.sendToClient(resp)
+	msg := fmt.Sprintf("Invalid auth from client. Actual :%s , desire:%s, target host is %s\n", cmd.auth, Config.Auth, cmd.getHost())
+	log.Printf(msg)
+	p.close(msg, nil)
+}
+
+func (p *Pipeline) tryConnectingTarget(cmd *cmdConnect) {
 	proxyClient, e := newProxyClient(cmd)
 	if e != nil {
 		p.close("Error when connect to target server .", e)
 	} else {
 		p.configProxyClient(proxyClient)
-		//TODO validate
-
 		resp := newCmdConnectResp(true, cmd.enctype)
 		p.createEncFactory(resp)
 		p.c.Start()
 		p.s.sendToClient(resp)
 	}
-
 }
 
 func (p *Pipeline) createEncFactory(cmd *cmdConnectResp) {
@@ -99,7 +116,9 @@ func (p *Pipeline) configProxyClient(c *Client) {
 		p.close("Error in proxy client.", err)
 	}
 	p.c.onRead = func(l int, data []byte) {
-		id := time.Now().Format("20060102150405001")
+		rd := rand.Intn(10000)
+		t := time.Now().Format("2006-01-02 15:04:05")
+		id := fmt.Sprintf("%s:%d", t, rd)
 		resp := newServerProxyData(id, data, p.s.encFactory)
 		p.s.sendToClient(resp)
 	}
