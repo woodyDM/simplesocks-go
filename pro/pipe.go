@@ -50,7 +50,7 @@ func (p *Pipeline) close(msg string, err error) {
 }
 
 func onReadBuffer(p *Pipeline, buf *buffer) {
-	c, err := parseCommand(buf, p.s.encFactory)
+	c, err := parseCommand(buf, p.s.encrypter)
 	if err != nil {
 		p.close("ParseCommand ", err)
 	}
@@ -84,7 +84,7 @@ func (p *Pipeline) connectToTargetIfAuthOk(cmd *cmdConnect) {
 }
 
 func (p *Pipeline) sendFailResponse(cmd *cmdConnect) {
-	resp := newCmdConnectResp(false, cmd.enctype)
+	resp := newCmdConnectFailResp(cmd.enctype)
 	p.s.sendToClient(resp)
 	msg := fmt.Sprintf("Invalid auth from client. Actual :%s , desire:%s, target host is %s\n", cmd.auth, Config.Auth, cmd.getHost())
 	log.Printf(msg)
@@ -98,16 +98,30 @@ func (p *Pipeline) tryConnectingTarget(cmd *cmdConnect) {
 	} else {
 		p.configProxyClient(proxyClient)
 		resp := newCmdConnectResp(true, cmd.enctype)
-		p.createEncFactory(resp)
+		p.createSClientEncrypter(resp)
 		p.c.Start()
 		p.s.sendToClient(resp)
 	}
 }
 
-func (p *Pipeline) createEncFactory(cmd *cmdConnectResp) {
+func (p *Pipeline) createSClientEncrypter(cmd *cmdConnectResp) {
 	//TODO add aes encFactory
-	p.s.encFactory = caesarFactory{offset: cmd.iv[0]}
-
+	iv := generateIV(cmd.encType)
+	cmd.configIv(iv)
+	switch cmd.encType {
+	case ENC_CAESAR:
+		p.s.encrypter = &caesarEncrypter{offset: iv[0]}
+	case ENC_AES_CBC:
+		p.s.encrypter = &aesCBCEncrypter{
+			iv:  cmd.iv,
+			key: paddingEncKey(Config.Auth),
+		}
+	case ENC_AES_CFB:
+		p.s.encrypter = &aesCFBEncrypter{
+			iv:  cmd.iv,
+			key: paddingEncKey(Config.Auth),
+		}
+	}
 }
 
 func (p *Pipeline) configProxyClient(c *Client) {
@@ -119,7 +133,7 @@ func (p *Pipeline) configProxyClient(c *Client) {
 		rd := rand.Intn(10000)
 		t := time.Now().Format("2006-01-02 15:04:05")
 		id := fmt.Sprintf("%s:%d", t, rd)
-		resp := newServerProxyData(id, data, p.s.encFactory)
+		resp := newServerProxyData(id, data, p.s.encrypter)
 		p.s.sendToClient(resp)
 	}
 }

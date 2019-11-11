@@ -118,18 +118,17 @@ func fillHeader(h *header, result [][]byte) {
 	result[2] = []byte{byte(h.cType)}
 }
 
+func newCmdConnectFailResp(enctype string) *cmdConnectResp {
+	result := newCmdConnectResp(false, enctype)
+	result.configIv([]byte{byte(0)})
+	return result
+}
+
 /**
 when fail, still give enctype back but iv is []byte len=1 value=0
 */
 func newCmdConnectResp(ok bool, enctype string) *cmdConnectResp {
 
-	var iv []byte
-	if ok {
-		iv = []byte{100}
-	} else {
-		iv = []byte{0}
-	}
-	//should fill contentLength
 	result := &cmdConnectResp{
 		header: header{
 			version: NowVersion,
@@ -138,10 +137,14 @@ func newCmdConnectResp(ok bool, enctype string) *cmdConnectResp {
 		ok:           ok,
 		encType:      enctype,
 		encTypeBytes: []byte(enctype),
-		iv:           iv, //TODO change
 	}
-	result.fillContentLength()
+
 	return result
+}
+
+func (c *cmdConnectResp) configIv(iv []byte) {
+	c.iv = iv
+	c.fillContentLength()
 }
 
 func newProxyCmdResp(ok bool, id string) *cmdProxyDataResp {
@@ -161,10 +164,9 @@ func newProxyCmdResp(ok bool, id string) *cmdProxyDataResp {
 }
 
 // the data is encrypted!
-func newServerProxyData(id string, data []byte, factory encFactory) *cmdServerProxyData {
+func newServerProxyData(id string, data []byte, e encrypter) *cmdServerProxyData {
 	idBytes := []byte(id)
 	l := len(idBytes)
-	e := factory.newEncrypter()
 	enc := e.enc(data)
 
 	result := &cmdServerProxyData{
@@ -188,14 +190,14 @@ func (c *cmdConnectResp) fillContentLength() {
 	c.contentLength = result
 }
 
-func parseCommand(buf *buffer, factory encFactory) (command, error) {
+func parseCommand(buf *buffer, e encrypter) (command, error) {
 	data := buf.body.content
 	body := data[1:]
 	switch cmdType(data[0]) {
 	case CONNECT:
 		return parseConnectCmd(body)
 	case PROXY:
-		return parseProxyCmd(body, factory)
+		return parseProxyCmd(body, e)
 	default:
 		return nil, errors.New(fmt.Sprintf("Type %d unsupported. ", data[0]))
 	}
@@ -232,11 +234,11 @@ func parseConnectCmd(data []byte) (command, error) {
 	return result, nil
 }
 
-func parseProxyCmd(data []byte, factory encFactory) (*cmdProxy, error) {
+func parseProxyCmd(data []byte, e encrypter) (*cmdProxy, error) {
 	l := int(data[0])
 	id := string(data[1 : l+1])
 	enc := data[l+1:]
-	dec := factory.newEncrypter().dec(enc)
+	dec := e.dec(enc)
 	return &cmdProxy{
 		idLength: l,
 		id:       id,

@@ -6,7 +6,7 @@ import (
 
 type SClient struct {
 	*Client
-	encFactory
+	encrypter
 	onReadBuff func(buf *buffer)
 	buf        *buffer
 }
