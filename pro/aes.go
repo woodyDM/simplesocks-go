@@ -42,13 +42,15 @@ func pkcs5UnPadding(origData []byte) []byte {
 
 func EncryptAsCFB(plainByte []byte, key []byte, iv []byte) (encrypted []byte) {
 	block := getCipher(key)
+	plainByte = pkcs5Padding(plainByte, aes.BlockSize)
 	encrypted = make([]byte, aes.BlockSize+len(plainByte))
 	stream := cipher.NewCFBEncrypter(block, iv)
 	stream.XORKeyStream(encrypted[aes.BlockSize:], plainByte)
 	return encrypted
 }
 func DecryptAsCFB(encrypted []byte, key []byte, iv []byte) (decrypted []byte) {
-	log.Printf("aes dec : raw size is %d\n", len(encrypted))
+	log.Printf("aes cfb dec : raw size is %d\n", len(encrypted))
+	encrypted = pkcs5Padding(encrypted, aes.BlockSize)
 	block := getCipher(key)
 	if len(encrypted) < aes.BlockSize {
 		panic("cipherText too short, should greater than aes blockSize 16. ")
@@ -56,7 +58,8 @@ func DecryptAsCFB(encrypted []byte, key []byte, iv []byte) (decrypted []byte) {
 	encrypted = encrypted[aes.BlockSize:]
 	stream := cipher.NewCFBDecrypter(block, iv)
 	stream.XORKeyStream(encrypted, encrypted)
-	return encrypted
+	decrypted = pkcs5UnPadding(encrypted)
+	return decrypted
 }
 
 func getCipher(key []byte) cipher.Block {

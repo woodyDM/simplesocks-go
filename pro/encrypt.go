@@ -1,6 +1,7 @@
 package pro
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log"
@@ -93,19 +94,20 @@ func paddingEncKey(auth string) []byte {
 	if l == 0 {
 		panic(errors.New("The auth should have len >0 "))
 	} else if l <= 16 {
-		return paddingKeyWithSpace(key, 16)
+		return paddingKeyUsingPkcs5(key, 16)
 	} else if l <= 24 {
-		return paddingKeyWithSpace(key, 16)
+		return paddingKeyUsingPkcs5(key, 24)
 	} else if l <= 32 {
-		return paddingKeyWithSpace(key, 16)
+		return paddingKeyUsingPkcs5(key, 32)
 	}
 	return nil
 }
 
-func paddingKeyWithSpace(key []byte, targetLen int) []byte {
+func paddingKeyUsingPkcs5(key []byte, targetLen int) []byte {
+	left := targetLen - len(key)
 	result := make([]byte, targetLen)
-	for i := 0; i < len(key); i++ {
-		result[i] = key[i]
-	}
+	copy(result, key)
+	paddingText := bytes.Repeat([]byte{byte(left)}, left)
+	copy(result[len(key):], paddingText)
 	return result
 }

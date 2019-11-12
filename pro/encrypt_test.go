@@ -2,10 +2,30 @@ package pro
 
 import "testing"
 
-func Test_padding_Key(t *testing.T) {
+func Test_padding_Key_16(t *testing.T) {
 	key := paddingEncKey("haha😄")
 	if len(key) != 16 {
 		t.Fatal("16")
+	}
+}
+
+func Test_padding_Key_24(t *testing.T) {
+	key := paddingEncKey("haha😄1234567890123")
+	if len(key) != 24 {
+		t.Fatal("24")
+	}
+	if key[23] != byte(3) {
+		t.Fatal("pkcs5 :should be 3")
+	}
+}
+
+func Test_padding_Key_32(t *testing.T) {
+	key := paddingEncKey("haha😄1234567890123456_")
+	if len(key) != 32 {
+		t.Fatal("32")
+	}
+	if key[30] != byte(7) {
+		t.Fatal("pkcs5 :should be 3")
 	}
 }
 
