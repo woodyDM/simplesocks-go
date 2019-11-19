@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
 )
 
@@ -28,25 +27,11 @@ type aesCBCEncrypter struct {
 	key []byte
 }
 
-type aesCFBEncrypter struct {
-	iv  []byte
-	key []byte
-}
-
-func (a aesCFBEncrypter) enc(raw []byte) []byte {
-	return EncryptAsCFB(raw, a.key, a.iv)
-}
-
-func (a aesCFBEncrypter) dec(data []byte) []byte {
-	return DecryptAsCFB(data, a.key, a.iv)
-}
-
 func (a aesCBCEncrypter) enc(raw []byte) []byte {
 	return EncryptAsBCB(raw, a.key, a.iv)
 }
 
 func (a aesCBCEncrypter) dec(data []byte) []byte {
-	log.Printf("CBC size is %d", len(data))
 	return DecryptAsCBC(data, a.key, a.iv)
 }
 
@@ -76,7 +61,7 @@ func generateIV(encType string) []byte {
 	switch encType {
 	case ENC_CAESAR:
 		return []byte{byte(rand.Intn(255))}
-	case ENC_AES_CBC, ENC_AES_CFB:
+	case ENC_AES_CBC:
 		result := make([]byte, 16)
 		for i := 0; i < 16; i++ {
 			result[i] = byte(rand.Intn(255))

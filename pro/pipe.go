@@ -117,10 +117,7 @@ func (p *Pipeline) createSClientEncrypter(cmd *cmdConnectResp) {
 			key: paddingEncKey(Config.Auth),
 		}
 	case ENC_AES_CFB:
-		p.s.encrypter = &aesCFBEncrypter{
-			iv:  cmd.iv,
-			key: paddingEncKey(Config.Auth),
-		}
+		panic(errors.New("The Golang SimpleSocks does not support AES-CFB mode. "))
 	}
 }
 

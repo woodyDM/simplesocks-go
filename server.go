@@ -5,18 +5,12 @@ import (
 	"log"
 	"math/rand"
 	"net"
-	"net/http"
 	_ "net/http/pprof"
 	"simplesocks-go/pro"
 	"time"
 )
 
 func main() {
-	//TODO delete debug server
-	go func() {
-		log.Println(http.ListenAndServe("localhost:9999", nil))
-	}()
-
 	configPath := "./config.json"
 	pro.LoadFile(configPath)
 	rand.Seed(time.Now().Unix())
@@ -41,6 +35,8 @@ func main() {
 }
 
 func handleNewConn(conn net.Conn) {
+
 	pipe := pro.NewPipeline(conn)
 	pipe.Start()
+
 }
