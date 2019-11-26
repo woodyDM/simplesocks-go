@@ -6,22 +6,22 @@ import (
 	"math/rand"
 	"net"
 	_ "net/http/pprof"
-	"simplesocks-go/pro"
+	"simplesocks-go/pkg"
 	"time"
 )
 
 func main() {
 	configPath := "./config.json"
-	pro.LoadFile(configPath)
+	pkg.LoadFile(configPath)
 	rand.Seed(time.Now().Unix())
 
-	local := fmt.Sprintf(":%d", pro.Config.Port)
+	local := fmt.Sprintf(":%d", pkg.Config.Port)
 	listener, err := net.Listen("tcp", local)
 	if err != nil {
 		log.Fatalf("\nFailed to start server %v", err)
 		return
 	} else {
-		log.Printf("\nSimpleSocks Server start at port %d with auth [%s] .\n", pro.Config.Port, pro.Config.Auth)
+		log.Printf("\nSimpleSocks Server start at port %d with auth [%s] .\n", pkg.Config.Port, pkg.Config.Auth)
 	}
 	for {
 		conn, err := listener.Accept()
@@ -36,7 +36,7 @@ func main() {
 
 func handleNewConn(conn net.Conn) {
 
-	pipe := pro.NewPipeline(conn)
+	pipe := pkg.NewPipeline(conn)
 	pipe.Start()
 
 }

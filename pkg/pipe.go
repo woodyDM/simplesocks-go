@@ -1,4 +1,4 @@
-package pro
+package pkg
 
 import (
 	"errors"
@@ -105,7 +105,6 @@ func (p *Pipeline) tryConnectingTarget(cmd *cmdConnect) {
 }
 
 func (p *Pipeline) createSClientEncrypter(cmd *cmdConnectResp) {
-	//TODO add aes encFactory
 	iv := generateIV(cmd.encType)
 	cmd.configIv(iv)
 	switch cmd.encType {
