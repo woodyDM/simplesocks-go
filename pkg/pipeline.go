@@ -14,6 +14,9 @@ import (
 const defaultChanSize = 10
 const timeOut = 30
 
+/**
+client and target server data pipeline
+*/
 func NewPipe(cn net.Conn) *pipe {
 	return &pipe{
 		client:   cn,
@@ -25,25 +28,35 @@ func NewPipe(cn net.Conn) *pipe {
 	}
 }
 
+type pipe struct {
+	client net.Conn
+	target net.Conn
+	/**
+	goroutine listen on this channel, do not send data to this channel, only select on it.
+	 */
+	done   chan interface{}
+	/**
+	current client command buffer
+	 */
+	buf  *buffer
+	/**
+	client connect meta
+	 */
+	meta *cmdConnect
+	/**
+	encrypter for this connection
+	 */
+	enc      encrypter
+	from     chan *buffer       //goroutine listen on this channel
+	toClient chan serverCommand //goroutine listen on this channel
+	out      chan []byte        //goroutine listen on this channel
+}
+
 func (p *pipe) Start() {
 	go p.listenClose()
 	go p.readClient()     //cmd from client
 	go p.sendTarget()     //cmd send to target
 	go p.listenToClient() //cmd send to client
-}
-
-type pipe struct {
-	client net.Conn
-	target net.Conn
-	done   chan interface{} //goroutine listen on this channel
-	//client field
-	buf  *buffer
-	meta *cmdConnect
-	//target filed
-	enc      encrypter
-	from     chan *buffer       //goroutine listen on this channel
-	toClient chan serverCommand //goroutine listen on this channel
-	out      chan []byte        //goroutine listen on this channel
 }
 
 func (p *pipe) isDone() bool {
@@ -57,11 +70,21 @@ func (p *pipe) isDone() bool {
 
 func (p *pipe) listenClose() {
 	<-p.done
-	_ = p.client.Close()
+	//do not close client conn here,for gracefully shutdown , see listenToClient
 	if p.target != nil {
 		_ = p.target.Close()
 	}
 }
+func (p *pipe) close(msg string, err error, needLog bool) {
+	if needLog && !skipLog(err) {
+		log.Printf("Close pipe \n[message]: %v\n[ error ]: %v\n", msg, err)
+	}
+	if p.isDone() {
+		return
+	}
+	mustClose(p.done)
+}
+
 func mustClose(ch chan interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -71,14 +94,8 @@ func mustClose(ch chan interface{}) {
 	close(ch) // panic if ch is closed
 }
 
-func (p *pipe) close(msg string, err error, needLog bool) {
-	if needLog && !skipLog(err) {
-		log.Printf("Close pipe \n[message]: %v\n[ error ]: %v\n", msg, err)
-	}
-	if p.isDone() {
-		return
-	}
-	mustClose(p.done)
+func skipLog_(err error) bool {
+	return false
 }
 
 func skipLog(err error) bool {
@@ -127,7 +144,9 @@ func (p *pipe) sendTarget() {
 }
 
 func (p *pipe) listenToClient() {
-	for !p.isDone() {
+	closed := false
+	//no for condition, for graceful shutdown
+	for {
 		select {
 		case cmd := <-p.toClient:
 			for _, b := range cmd.body() {
@@ -146,7 +165,13 @@ func (p *pipe) listenToClient() {
 				}
 			}
 		case <-p.done:
-			return
+			//graceful shutdown: should close client until all data in chan[toClient] sent.
+			if closed {
+				_ = p.client.Close()
+				return
+			} else {
+				closed = true
+			}
 		}
 	}
 }
@@ -261,7 +286,7 @@ func (p *pipe) readIn() {
 		}
 		n, err := p.target.Read(data)
 		if err != nil {
-			p.close("Failed to read from target server", err, true)
+			p.close(fmt.Sprintf("Failed to read from target server %v ", p.target.RemoteAddr()), err, true)
 			break
 		} else {
 			if n == 0 {
