@@ -57,20 +57,19 @@ func (c *caesarEncrypter) doLoop(l int, consumer func(r []byte, pos int)) []byte
 
 }
 
-func generateIV(encType string) []byte {
+func generateIV(encType string) ([]byte, error) {
 	switch encType {
 	case ENC_CAESAR:
-		return []byte{byte(rand.Intn(255))}
+		return []byte{byte(rand.Intn(255))}, nil
 	case ENC_AES_CBC:
 		result := make([]byte, 16)
 		for i := 0; i < 16; i++ {
 			result[i] = byte(rand.Intn(255))
 		}
-		return result
+		return result, nil
 	default:
-		panic(errors.New(fmt.Sprintf("Unsupported enctype of %s", encType)))
+		return nil, errors.New(fmt.Sprintf("Unsupported enctype of %s", encType))
 	}
-	return nil
 }
 
 func paddingEncKey(auth string) []byte {

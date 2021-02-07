@@ -201,7 +201,6 @@ func parseCommand(buf *buffer, e encrypter) (command, error) {
 	default:
 		return nil, errors.New(fmt.Sprintf("Type %d unsupported. ", data[0]))
 	}
-
 }
 
 func (cmd *cmdConnect) getHost() string {
@@ -244,7 +243,6 @@ func parseProxyCmd(data []byte, e encrypter) (*cmdProxy, error) {
 		id:       id,
 		data:     dec,
 	}, nil
-
 }
 
 func parsePort(p []byte) int {
