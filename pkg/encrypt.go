@@ -28,17 +28,11 @@ type aesCBCEncrypter struct {
 }
 
 func (a aesCBCEncrypter) enc(raw []byte) []byte {
-	return EncryptAsBCB(raw, myCopy(a.key), myCopy(a.iv))
-}
-
-func myCopy(src []byte) []byte {
-	rs := make([]byte, len(src))
-	copy(rs, src)
-	return rs
+	return EncryptAsBCB(raw, a.key, a.iv)
 }
 
 func (a aesCBCEncrypter) dec(data []byte) []byte {
-	return DecryptAsCBC(data, myCopy(a.key), myCopy(a.iv))
+	return DecryptAsCBC(data, a.key, a.iv)
 }
 
 func (c *caesarEncrypter) enc(raw []byte) []byte {
