@@ -8,11 +8,14 @@ import (
 	"math/rand"
 	"net"
 	"strings"
+	"sync"
 	"time"
 )
 
 const defaultChanSize = 10
 const timeOut = 30
+const connectTimeOut = 10
+const defaultBufferSize = 4096
 
 /**
 client and target server data pipeline
@@ -33,27 +36,28 @@ type pipe struct {
 	target net.Conn
 	/**
 	goroutine listen on this channel, do not send data to this channel, only select on it.
-	 */
-	done   chan interface{}
+	*/
+	done chan interface{}
 	/**
 	current client command buffer
-	 */
-	buf  *buffer
+	*/
+	buf *buffer
 	/**
 	client connect meta
-	 */
+	*/
 	meta *cmdConnect
 	/**
 	encrypter for this connection
-	 */
+	*/
 	enc      encrypter
 	from     chan *buffer       //goroutine listen on this channel
 	toClient chan serverCommand //goroutine listen on this channel
 	out      chan []byte        //goroutine listen on this channel
+
+	once sync.Once
 }
 
 func (p *pipe) Start() {
-	go p.listenClose()
 	go p.readClient()     //cmd from client
 	go p.sendTarget()     //cmd send to target
 	go p.listenToClient() //cmd send to client
@@ -68,30 +72,14 @@ func (p *pipe) isDone() bool {
 	}
 }
 
-func (p *pipe) listenClose() {
-	<-p.done
-	//do not close client conn here,for gracefully shutdown , see listenToClient
-	if p.target != nil {
-		_ = p.target.Close()
-	}
-}
 func (p *pipe) close(msg string, err error, needLog bool) {
 	if needLog && !skipLog(err) {
 		log.Printf("Close pipe \n[message]: %v\n[ error ]: %v\n", msg, err)
 	}
-	if p.isDone() {
-		return
-	}
-	mustClose(p.done)
-}
-
-func mustClose(ch chan interface{}) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("close panic: %v\n", r)
-		}
-	}()
-	close(ch) // panic if ch is closed
+	//close signal
+	p.once.Do(func() {
+		close(p.done)
+	})
 }
 
 func skipLog_(err error) bool {
@@ -186,7 +174,7 @@ func (p *pipe) connect(cmd *cmdConnect) {
 		return
 	}
 	host := cmd.getHost()
-	conn, e := net.DialTimeout("tcp", host, time.Second*timeOut)
+	conn, e := net.DialTimeout("tcp", host, time.Second*connectTimeOut)
 	if e != nil {
 		p.close("Failed to connect to target", e, true)
 		return
@@ -226,7 +214,7 @@ func (p *pipe) createEnc(cmd *cmdConnectResp) error {
 }
 func (p *pipe) readClient() {
 	for !p.isDone() {
-		leftData := make([]byte, 4096)
+		leftData := make([]byte, defaultBufferSize)
 		er := p.client.SetReadDeadline(time.Now().Add(time.Second * timeOut))
 		if er != nil {
 			p.close("Error when set client read timeout", er, true)
@@ -278,7 +266,7 @@ func (p *pipe) readIn() {
 		panic(errors.New("No meta but read in started\n"))
 	}
 	for !p.isDone() {
-		data := make([]byte, 4096)
+		data := make([]byte, defaultBufferSize)
 		er := p.target.SetReadDeadline(time.Now().Add(time.Second * timeOut))
 		if er != nil {
 			p.close("Failed to set read timeout for target server", er, true)
@@ -306,7 +294,8 @@ func (p *pipe) readIn() {
 }
 
 func (p *pipe) sendOut() {
-	for !p.isDone() {
+	closed := false
+	for {
 		select {
 		case d := <-p.out:
 			for len(d) > 0 {
@@ -323,7 +312,12 @@ func (p *pipe) sendOut() {
 				d = d[n:]
 			}
 		case <-p.done:
-			return
+			if closed {
+				_ = p.target.Close()
+				return
+			} else {
+				closed = true
+			}
 		}
 	}
 }

@@ -10,7 +10,6 @@ import (
 	"os"
 	"simplesocks-go/pkg"
 	"time"
-
 )
 
 func main() {
@@ -25,13 +24,7 @@ func main() {
 	} else {
 		log.Printf("\nSimpleSocks Server start at port %d with auth [%s] .\n", pkg.Config.Port, pkg.Config.Auth)
 	}
-	go func() {
-		// 启动一个 http server，注意 pprof 相关的 handler 已经自动注册过了
-		if err := http.ListenAndServe(":8023", nil); err != nil {
-			log.Fatal(err)
-		}
-		os.Exit(0)
-	}()
+	initPPROF()
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -40,6 +33,21 @@ func main() {
 		} else {
 			go handleNewConn(conn)
 		}
+	}
+}
+
+func initPPROF() {
+	enable := os.Getenv("DEBUG")
+	if enable == "1" {
+		go func() {
+			addr := ":8023"
+			log.Printf("start up pprof server at port %s\n", addr)
+			// 启动一个 http server，注意 pprof 相关的 handler 已经自动注册过了
+			if err := http.ListenAndServe(addr, nil); err != nil {
+				log.Fatal(err)
+			}
+			os.Exit(0)
+		}()
 	}
 }
 
@@ -52,11 +60,9 @@ func handleNewConn(conn net.Conn) {
 
 /**
 read config from config.json
- */
+*/
 func initConfig() {
 	configPath := "./config.json"
 	pkg.LoadFile(configPath)
 	rand.Seed(time.Now().Unix())
 }
-
-
