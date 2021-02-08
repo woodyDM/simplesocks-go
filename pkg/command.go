@@ -118,17 +118,10 @@ func fillHeader(h *header, result [][]byte) {
 	result[2] = []byte{byte(h.cType)}
 }
 
-func newCmdConnectFailResp(enctype string) *cmdConnectResp {
-	result := newCmdConnectResp(false, enctype)
-	result.configIv([]byte{byte(0)})
-	return result
-}
-
 /**
 when fail, still give enctype back but iv is []byte len=1 value=0
 */
-func newCmdConnectResp(ok bool, enctype string) *cmdConnectResp {
-
+func newCmdConnectResp(ok bool, enctype string, iv []byte) *cmdConnectResp {
 	result := &cmdConnectResp{
 		header: header{
 			version: NowVersion,
@@ -137,14 +130,10 @@ func newCmdConnectResp(ok bool, enctype string) *cmdConnectResp {
 		ok:           ok,
 		encType:      enctype,
 		encTypeBytes: []byte(enctype),
+		iv:           iv,
 	}
-
+	result.fillContentLength()
 	return result
-}
-
-func (c *cmdConnectResp) configIv(iv []byte) {
-	c.iv = iv
-	c.fillContentLength()
 }
 
 func newProxyCmdResp(ok bool, id string) *cmdProxyDataResp {

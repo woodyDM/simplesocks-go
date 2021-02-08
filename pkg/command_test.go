@@ -5,10 +5,9 @@ import (
 )
 
 func Test_should_cn_resp_ok(t *testing.T) {
-
 	enctype := "caesar"
-	result := newCmdConnectResp(true, enctype)
-	result.configIv([]byte{byte(100)})
+	iv := []byte{byte(100)}
+	result := newCmdConnectResp(true, enctype, iv)
 	if !result.ok {
 		t.Fatal("should ok")
 	}
@@ -23,8 +22,8 @@ func Test_should_cn_resp_ok(t *testing.T) {
 
 func Test_should_cn_resp_fail(t *testing.T) {
 	enctype := "caesar"
-	result := newCmdConnectResp(false, enctype)
-	result.configIv([]byte{byte(100)})
+	iv := []byte{byte(100)}
+	result := newCmdConnectResp(false, enctype, iv)
 
 	if result.ok {
 		t.Fatal("should fail")

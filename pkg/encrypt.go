@@ -3,8 +3,6 @@ package pkg
 import (
 	"bytes"
 	"errors"
-	"fmt"
-	"math/rand"
 )
 
 const (
@@ -12,6 +10,8 @@ const (
 	ENC_AES_CBC = "aes-cbc"
 	ENC_AES_CFB = "aes-cfb"
 )
+
+var UnsupportedEnc = errors.New("unsupported enc")
 
 type encrypter interface {
 	enc(raw []byte) []byte
@@ -28,11 +28,17 @@ type aesCBCEncrypter struct {
 }
 
 func (a aesCBCEncrypter) enc(raw []byte) []byte {
-	return EncryptAsBCB(raw, a.key, a.iv)
+	return EncryptAsBCB(raw, myCopy(a.key), myCopy(a.iv))
+}
+
+func myCopy(src []byte) []byte {
+	rs := make([]byte, len(src))
+	copy(rs, src)
+	return rs
 }
 
 func (a aesCBCEncrypter) dec(data []byte) []byte {
-	return DecryptAsCBC(data, a.key, a.iv)
+	return DecryptAsCBC(data, myCopy(a.key), myCopy(a.iv))
 }
 
 func (c *caesarEncrypter) enc(raw []byte) []byte {
@@ -57,37 +63,22 @@ func (c *caesarEncrypter) doLoop(l int, consumer func(r []byte, pos int)) []byte
 
 }
 
-func generateIV(encType string) ([]byte, error) {
-	switch encType {
-	case ENC_CAESAR:
-		return []byte{byte(rand.Intn(255))}, nil
-	case ENC_AES_CBC:
-		result := make([]byte, 16)
-		for i := 0; i < 16; i++ {
-			result[i] = byte(rand.Intn(255))
-		}
-		return result, nil
-	default:
-		return nil, errors.New(fmt.Sprintf("Unsupported enctype of %s", encType))
-	}
-}
-
 func paddingEncKey(auth string) []byte {
 	key := []byte(auth)
 	l := len(key)
 	if l == 0 {
 		panic(errors.New("The auth should have len >0 "))
 	} else if l <= 16 {
-		return paddingKeyUsingPkcs5(key, 16)
+		return PaddingKeyUsingPkcs5(key, 16)
 	} else if l <= 24 {
-		return paddingKeyUsingPkcs5(key, 24)
+		return PaddingKeyUsingPkcs5(key, 24)
 	} else if l <= 32 {
-		return paddingKeyUsingPkcs5(key, 32)
+		return PaddingKeyUsingPkcs5(key, 32)
 	}
 	return nil
 }
 
-func paddingKeyUsingPkcs5(key []byte, targetLen int) []byte {
+func PaddingKeyUsingPkcs5(key []byte, targetLen int) []byte {
 	left := targetLen - len(key)
 	result := make([]byte, targetLen)
 	copy(result, key)

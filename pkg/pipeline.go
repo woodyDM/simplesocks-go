@@ -13,8 +13,8 @@ import (
 )
 
 const defaultChanSize = 10
-const timeOut = 30
-const connectTimeOut = 10
+const timeOut = 60
+const connectTimeOut = 15
 const defaultBufferSize = 4096
 
 /**
@@ -82,11 +82,10 @@ func (p *pipe) close(msg string, err error, needLog bool) {
 	})
 }
 
-func skipLog_(err error) bool {
-	return false
-}
-
 func skipLog(err error) bool {
+	if IsDebug() {
+		return false
+	}
 	if err == nil {
 		return false
 	}
@@ -107,7 +106,8 @@ func skipLog(err error) bool {
 }
 
 func (p *pipe) sendTarget() {
-	for !p.isDone() {
+	closed := false
+	for {
 		select {
 		case buf := <-p.from:
 			c, err := parseCommand(buf, p.enc)
@@ -126,7 +126,11 @@ func (p *pipe) sendTarget() {
 				panic(errors.New("Unreachable. "))
 			}
 		case <-p.done:
-			return
+			if closed {
+				return
+			} else {
+				closed = true
+			}
 		}
 	}
 }
@@ -167,7 +171,7 @@ func (p *pipe) listenToClient() {
 func (p *pipe) connect(cmd *cmdConnect) {
 	p.meta = cmd
 	if cmd.auth != Config.Auth {
-		resp := newCmdConnectFailResp(cmd.enctype)
+		resp := newCmdConnectResp(false, cmd.enctype, []byte{byte(0)})
 		p.toClient <- resp
 		log.Printf("Invalid auth from client. Actual :%s , desire:%s, target host is %s\n", cmd.auth, Config.Auth, cmd.getHost())
 		p.close("Invalid auth", nil, false)
@@ -183,35 +187,37 @@ func (p *pipe) connect(cmd *cmdConnect) {
 	p.target = conn
 	go p.readIn()
 	go p.sendOut()
-	resp := newCmdConnectResp(true, cmd.enctype)
-	err := p.createEnc(resp)
+	iv, err := p.createEnc(cmd.enctype)
 	if err != nil {
 		p.close("Failed create enc for client ", e, true)
 		return
 	}
+	resp := newCmdConnectResp(true, cmd.enctype, iv)
 	p.toClient <- resp
 }
 
-func (p *pipe) createEnc(cmd *cmdConnectResp) error {
-	iv, err := generateIV(cmd.encType)
-	if err != nil {
-		return err
-	}
-	cmd.configIv(iv)
-	switch cmd.encType {
+func (p *pipe) createEnc(encType string) ([]byte, error) {
+	var iv []byte
+	switch encType {
 	case ENC_CAESAR:
-		p.enc = &caesarEncrypter{offset: iv[0]}
+		bt := byte(rand.Intn(255))
+		iv = []byte{bt}
+		p.enc = &caesarEncrypter{offset: bt}
 	case ENC_AES_CBC:
+		iv = make([]byte, 16)
+		for i := 0; i < 16; i++ {
+			iv[i] = byte(rand.Intn(255))
+		}
 		p.enc = &aesCBCEncrypter{
-			iv:  cmd.iv,
+			iv:  iv,
 			key: paddingEncKey(Config.Auth),
 		}
-	default:
-		panic("unreachable")
-
+	case ENC_AES_CFB:
+		return nil, UnsupportedEnc
 	}
-	return nil
+	return iv, nil
 }
+
 func (p *pipe) readClient() {
 	for !p.isDone() {
 		leftData := make([]byte, defaultBufferSize)

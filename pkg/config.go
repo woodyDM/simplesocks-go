@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 )
 
 type ServerConfig struct {
@@ -28,4 +29,9 @@ func LoadFile(path string) *ServerConfig {
 		panic(errors.New("port should between 0 and 65535. "))
 	}
 	return Config
+}
+
+func IsDebug() bool {
+	enable := os.Getenv("DEBUG")
+	return enable == "1"
 }
