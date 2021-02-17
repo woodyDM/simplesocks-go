@@ -9,22 +9,6 @@ const (
 	CONN = "010000002c010a07cccdcecfd0d1d280544ffc000ec8fefdfe0301bb9bfeff09c9fd0a0a0ffe0e0ec9fe0a08"
 )
 
-func Test_buff_read_from_bytes(t *testing.T) {
-	bytes, _ := hex.DecodeString(CONN)
-	buffers := readWithRemainingBuffer(bytes, nil)
-	if len(buffers) != 1 {
-		t.Fatal("Len should be one")
-	}
-	buf := buffers[0]
-	if !buf.full() {
-		t.Fatal("should full")
-	}
-	if buf.body.totalLength != 44-LenHeaderTotal {
-		t.Fatal("length should be 39")
-	}
-
-}
-
 func Test_cmd_connect(t *testing.T) {
 	bytes, _ := hex.DecodeString(CONN)
 	//skip headers and cmdtype

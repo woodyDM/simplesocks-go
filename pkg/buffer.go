@@ -21,51 +21,11 @@ type buffer struct {
 	body       *lenHolder
 }
 
-func readWithRemainingBuffer(data []byte, b *buffer) []*buffer {
-	//side conditions
-	if b == nil {
-		b = new(buffer)
-	}
-	var result []*buffer
-	var leftData = data
-
-	for len(leftData) > 0 {
-		if b.isNew() {
-			checkProtocolVersion(leftData[0])
-			b.readHeader = true
-			b.header = NewLenHolder(LenHeader)
-			leftData = leftData[1:]
-		} else {
-			if !b.readBody {
-				ok, left := b.header.read(leftData)
-				leftData = left
-				if ok {
-					b.readBody = true
-					b.body = NewLenHolder(b.header.parseLength0() - LenHeaderTotal)
-				}
-			} else {
-				ok, left := b.body.read(leftData)
-				leftData = left
-				if ok {
-					if !b.full() {
-						panic(errors.New("Should be full when reach here "))
-					}
-					result = append(result, b)
-					b = new(buffer)
-				}
-			}
-		}
-	}
-	if !b.isNew() {
-		result = append(result, b)
-	}
-	return result
-}
-
-func checkProtocolVersion(b byte) {
+func checkProtocolVersion(b byte) error {
 	if b != NowVersion {
-		panic(errors.New("Unsupported version "))
+		return errors.New("Unsupported version ")
 	}
+	return nil
 }
 
 type lenHolder struct {
@@ -120,7 +80,7 @@ func (h *lenHolder) read(data []byte) (bool, []byte) {
 }
 
 //big endian
-func (h *lenHolder) parseLength() int {
+func (h *lenHolder) _parseLength() int {
 	var result int
 	for i := 0; i < h.totalLength; i++ {
 		result += int(h.content[i]) << (8 * (3 - i))

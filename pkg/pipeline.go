@@ -236,7 +236,11 @@ func (p *pipe) readClient() {
 		//log.Printf("read local len %d\n", len(leftData))
 		for len(leftData) > 0 {
 			if p.buf.isNew() {
-				checkProtocolVersion(leftData[0])
+				e:=checkProtocolVersion(leftData[0])
+				if e != nil {
+					p.close("Invalid version", e, true)
+					return
+				}
 				p.buf.readHeader = true
 				p.buf.header = NewLenHolder(LenHeader)
 				leftData = leftData[1:]
